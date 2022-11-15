@@ -1,0 +1,1 @@
+module.exports.studentController = require('./students.controller');
