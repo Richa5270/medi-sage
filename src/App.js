@@ -15,11 +15,12 @@ function App() {
   return (
     <div className="App">
       <Routes>
-        <Route path='/register' element={<Register/>} />
-        <Route path='/login' element={<Login/>}/>
         <Route path="/" element={<Dashboard />} />
         {/* update with id value */}
         <Route path="/update/:id" element={<UpdateForm  />} />
+        <Route path="/register" element={<Register />}/>
+        <Route path="/login" exact element={<Login/>} />
+        <Route path="/deshboard" element={<Dashboard/>}/>
       </Routes>
     </div>
 
@@ -27,3 +28,4 @@ function App() {
 }
 
 export default App;
+

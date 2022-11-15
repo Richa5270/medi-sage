@@ -114,6 +114,7 @@ const updateStudents = async (req, res) => {
       phone_number: req.body.phone_number,
       country: countryName,
       country_code: req.body.country_code,
+      updatedAt: new Date(),
     };
     try {
       const query = `UPDATE students SET ? WHERE id = ${req.params.id}`;
@@ -168,21 +169,27 @@ const upload = multer({
 // upload image
 const uploadImage = async (req, res) => {
   const { id } = req.params;
-  const { file } = req;
-  console.log(file);
-  if (!file) {
+  var file = req.files;
+  if (!file || !file.image) {
     return res.status(400).json({
       message: "Please upload image",
     });
   } else {
+    file = file.image;
     try {
-      const query = `UPDATE students SET image = ? WHERE id = ${id}`;
-      const result = await executeQuery(query, file.buffer);
+      
+      const query = `UPDATE students SET ? WHERE id = ${id}`;
+let updateImage = {
+  image: file.data.toString('base64'),
+  updatedAt: new Date()
+}
+      const result = await executeQuery(query, updateImage);
       return res.status(200).json({
         message: "Image uploaded successfully",
         data: result,
       });
     } catch (err) {
+      console.log(err)
       return res.status(500).json({
         message: "Something went wrong",
         error: err,
