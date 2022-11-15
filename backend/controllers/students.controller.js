@@ -1,7 +1,6 @@
 const { executeQuery } = require("../config/db.connection");
 const studentModel = require("../models/student.model");
 const axios = require("axios");
-const multer = require("multer");
 
 const endpoints = "https://restcountries.com/v2/callingcode/";
 
@@ -14,9 +13,15 @@ const createStudents = async (req, res) => {
     // fetch country data from API using country code endpint =https://restcountries.com/v2/callingcode/:id
 
     const countryCode = req.body.country_code;
-    const countryData = await axios.get(`${endpoints}${countryCode}`);
+    let countryName = "";
+    try {
+      const countryData = await axios.get(`${endpoints}${countryCode}`);
+      countryName = countryData.data[0].name;
+    } catch (error) {
+      return res.status(400).send("Invalid country code");
+    }
 
-    const countryName = countryData.data[0].name;
+
 
     const studentData = {
       name: req.body.name,
@@ -26,6 +31,15 @@ const createStudents = async (req, res) => {
       country_code: req.body.country_code,
     };
     try {
+      
+      if ((await executeQuery(`SELECT * FROM students WHERE email = ?`, [req.body.email])).length > 0) {
+        return res.status(400).json({message: "Student email already exist with other user",});
+      }
+      if ((await executeQuery(`SELECT * FROM students WHERE phone_number = ?`, [req.body.phone_number])).length > 0) {
+        return res.status(400).json({message: "Student phone number already exist with other user",});
+      }
+
+
       const query = "INSERT INTO students SET ?";
       const result = await executeQuery(query, studentData);
       return res.status(200).json({
@@ -97,8 +111,6 @@ const getStudentById = async (req, res) => {
 
 // update student data
 const updateStudents = async (req, res) => {
-  console.log(req.params.id);
-  console.log(req.body);
   const { error } = studentModel(req.body);
   if (error) {
     return res.status(400).send(error.details[0].message);
@@ -117,6 +129,13 @@ const updateStudents = async (req, res) => {
       updatedAt: new Date(),
     };
     try {
+      if ((await executeQuery(`SELECT * FROM students WHERE email = ? AND id != ?`, [req.body.email,req.params.id,])).length > 0) {
+        return res.status(400).json({message: "Student email already exist with other user",});
+      }
+      if ((await executeQuery(`SELECT * FROM students WHERE phone_number = ? AND id != ?`, [req.body.phone_number,req.params.id,])).length > 0) {
+        return res.status(400).json({message: "Student phone number already exist with other user",});
+      }
+
       const query = `UPDATE students SET ? WHERE id = ${req.params.id}`;
       const result = await executeQuery(query, studentData);
       return res.status(200).json({
@@ -149,22 +168,6 @@ const deleteStudents = async (req, res) => {
     });
   }
 };
-// set storage engin
-const upload = multer({
-// save in binaray format
-  storage: multer.memoryStorage(),
-  limits: {
-    fileSize: 5 * 1024 * 1024, // no larger than 5mb
-  },
-
-  fileFilter: (req, file, cb) => {
-    if (file.mimetype === "image/png" || file.mimetype === "image/jpeg") {
-      cb(null, true);
-    } else {
-      cb(null, false);
-    }
-  },
-});
 
 // upload image
 const uploadImage = async (req, res) => {
@@ -176,13 +179,23 @@ const uploadImage = async (req, res) => {
     });
   } else {
     file = file.image;
+    if (file.size > 500000) {
+      return res.status(400).json({message: "File size is larger than 500kb"});
+    }
+
+    if (file.mimetype !== "image/png" &&file.mimetype !== "image/jpg" &&file.mimetype !== "image/jpeg"  ) {
+      return res.status(400).json({message: "File type is not supported"});
+    }
+
+
+
     try {
-      
+
       const query = `UPDATE students SET ? WHERE id = ${id}`;
-let updateImage = {
-  image: file.data.toString('base64'),
-  updatedAt: new Date()
-}
+      let updateImage = {
+        image: file.data.toString('base64'),
+        updatedAt: new Date()
+      }
       const result = await executeQuery(query, updateImage);
       return res.status(200).json({
         message: "Image uploaded successfully",
@@ -198,47 +211,6 @@ let updateImage = {
   }
 };
 
-//     storage: multer.diskStorage({
-//     destination:(req, file, cb)=> {
-//       cb(null, "uploads/")
-//     },
-//     filename: (req, file, cb) => {
-//       cb(null, file.fieldname +"_" + Date.now() + ".jpg"||".png"||".jpeg");
-//     }
-//   })
-// }).single("student_image");
-// // insert student image in database using multer
-// const uploadImage = async (req, res) => {
-//   console.log(req.file);
-//   const studentImage = {
-//     image: req.file.filename
-//   };
-//   try {
-//     //uopdate image in database
-//     const query = `UPDATE students SET ? WHERE id = ${req.params.id}`;
-//     const result = await executeQuery(query,studentImage);
-//     return res.status(200).json({
-//       message: "Student image uploaded successfully",
-//       data: studentImage,
-//     });
-//   } catch (err) {
-//     return res.status(500).json({
-//       message: "Something went wrong",
-//       error: err,
-//     });  
-//     }
-//   };
-
-
-
-  // res.send("Image uploaded successfully");
-
-
-
-  // }
-
-
-
 module.exports = {
   createStudents,
   searchStudents,
@@ -247,6 +219,5 @@ module.exports = {
   getStudentById,
   deleteStudents,
   uploadImage,
-  upload
 };
 
